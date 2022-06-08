@@ -60,6 +60,7 @@
 #define	KEX_ECDH_SHA2_NISTP256		"ecdh-sha2-nistp256"
 #define	KEX_ECDH_SHA2_NISTP384		"ecdh-sha2-nistp384"
 #define	KEX_ECDH_SHA2_NISTP521		"ecdh-sha2-nistp521"
+#define	KEX_ECDH_SHA2_NIDSM2		"ecdh-sha2-nidsm2"
 #define	KEX_CURVE25519_SHA256		"curve25519-sha256"
 #define	KEX_CURVE25519_SHA256_OLD	"curve25519-sha256@libssh.org"
 #define	KEX_SNTRUP761X25519_SHA512	"sntrup761x25519-sha512@openssh.com"

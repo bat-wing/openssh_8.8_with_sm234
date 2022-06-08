@@ -629,6 +629,7 @@ list_hostkey_types(void)
 			append_hostkey_type(b, "rsa-sha2-512");
 			append_hostkey_type(b, "rsa-sha2-256");
 			/* FALLTHROUGH */
+		case KEY_SM2:
 		case KEY_DSA:
 		case KEY_ECDSA:
 		case KEY_ED25519:
@@ -693,6 +694,7 @@ get_hostkey_by_type(int type, int nid, int need_private, struct ssh *ssh)
 		if (key == NULL || key->type != type)
 			continue;
 		switch (type) {
+		case KEY_SM2:
 		case KEY_ECDSA:
 		case KEY_ECDSA_SK:
 		case KEY_ECDSA_CERT:
@@ -1879,6 +1881,7 @@ main(int ac, char **av)
 		}
 
 		switch (keytype) {
+		case KEY_SM2:
 		case KEY_RSA:
 		case KEY_DSA:
 		case KEY_ECDSA:

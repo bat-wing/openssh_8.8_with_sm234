@@ -191,6 +191,7 @@ type_bits_valid(int type, const char *name, u_int32_t *bitsp)
 		case KEY_DSA:
 			*bitsp = DEFAULT_BITS_DSA;
 			break;
+		case KEY_SM2:
 		case KEY_ECDSA:
 			if (name != NULL &&
 			    (nid = sshkey_ecdsa_nid_from_name(name)) > 0)
@@ -206,6 +207,10 @@ type_bits_valid(int type, const char *name, u_int32_t *bitsp)
 	}
 #ifdef WITH_OPENSSL
 	switch (type) {
+	case KEY_SM2:
+		if(*bitsp != 256)
+			fatal("Invalid sm2 key length: must be 256 bits");
+		break;
 	case KEY_DSA:
 		if (*bitsp != 1024)
 			fatal("Invalid DSA key length: must be 1024 bits");
@@ -270,6 +275,9 @@ ask_filename(struct passwd *pw, const char *prompt)
 			name = _PATH_SSH_CLIENT_ID_DSA;
 			break;
 #ifdef OPENSSL_HAS_ECC
+		case KEY_SM2:
+			name = _PATH_SSH_CLIENT_ID_SM2;
+			break;
 		case KEY_ECDSA_CERT:
 		case KEY_ECDSA:
 			name = _PATH_SSH_CLIENT_ID_ECDSA;
@@ -384,6 +392,7 @@ do_convert_to_pkcs8(struct sshkey *k)
 			fatal("PEM_write_DSA_PUBKEY failed");
 		break;
 #ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA:
 		if (!PEM_write_EC_PUBKEY(stdout, k->ecdsa))
 			fatal("PEM_write_EC_PUBKEY failed");
@@ -1046,6 +1055,7 @@ do_gen_all_hostkeys(struct passwd *pw)
 		{ "rsa", "RSA" ,_PATH_HOST_RSA_KEY_FILE },
 		{ "dsa", "DSA", _PATH_HOST_DSA_KEY_FILE },
 #ifdef OPENSSL_HAS_ECC
+		{ "sm2", "SM2",_PATH_HOST_SM2_KEY_FILE },
 		{ "ecdsa", "ECDSA",_PATH_HOST_ECDSA_KEY_FILE },
 #endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
@@ -3583,6 +3593,9 @@ main(int argc, char **argv)
 			    print_generic);
 			n += do_print_resource_record(pw,
 			    _PATH_HOST_ECDSA_KEY_FILE, rr_hostname,
+			    print_generic);
+			n += do_print_resource_record(pw,
+			    _PATH_HOST_SM2_KEY_FILE, rr_hostname,
 			    print_generic);
 			n += do_print_resource_record(pw,
 			    _PATH_HOST_ED25519_KEY_FILE, rr_hostname,

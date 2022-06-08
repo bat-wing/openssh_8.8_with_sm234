@@ -247,6 +247,50 @@ sshkey_fuzz_tests(void)
 	sshbuf_free(fuzzed);
 	fuzz_cleanup(fuzz);
 	TEST_DONE();
+
+	TEST_START("fuzz SM2 private");
+	buf = load_file("sm2_1");
+	fuzz = fuzz_begin(FUZZ_BASE64, sshbuf_mutable_ptr(buf),
+	    sshbuf_len(buf));
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
+	sshkey_free(k1);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
+	TEST_ONERROR(onerror, fuzz);
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
+		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
+		ASSERT_INT_EQ(r, 0);
+		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
+			sshkey_free(k1);
+		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
+	}
+	sshbuf_free(fuzzed);
+	fuzz_cleanup(fuzz);
+	TEST_DONE();
+
+	TEST_START("fuzz SM2 new-format private");
+	buf = load_file("sm2_n");
+	fuzz = fuzz_begin(FUZZ_BASE64, sshbuf_mutable_ptr(buf),
+	    sshbuf_len(buf));
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
+	sshkey_free(k1);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(fuzzed = sshbuf_new(), NULL);
+	TEST_ONERROR(onerror, fuzz);
+	for(i = 0; !fuzz_done(fuzz); i++, fuzz_next(fuzz)) {
+		r = sshbuf_put(fuzzed, fuzz_ptr(fuzz), fuzz_len(fuzz));
+		ASSERT_INT_EQ(r, 0);
+		if (sshkey_parse_private_fileblob(fuzzed, "", &k1, NULL) == 0)
+			sshkey_free(k1);
+		sshbuf_reset(fuzzed);
+		if (test_is_fast() && i >= NUM_FAST_BASE64_TESTS)
+			break;
+	}
+	sshbuf_free(fuzzed);
+	fuzz_cleanup(fuzz);
+	TEST_DONE();
 #endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 
@@ -315,6 +359,15 @@ sshkey_fuzz_tests(void)
 	public_fuzz(k1);
 	sshkey_free(k1);
 	TEST_DONE();
+
+	TEST_START("fuzz SM2 public");
+	buf = load_file("sm2_1");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
+	sshbuf_free(buf);
+	public_fuzz(k1);
+	sshkey_free(k1);
+	TEST_DONE();
+
 #endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 
@@ -368,6 +421,14 @@ sshkey_fuzz_tests(void)
 #ifdef OPENSSL_HAS_ECC
 	TEST_START("fuzz ECDSA sig");
 	buf = load_file("ecdsa_1");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
+	sshbuf_free(buf);
+	sig_fuzz(k1, NULL);
+	sshkey_free(k1);
+	TEST_DONE();
+
+	TEST_START("fuzz SM2 sig");
+	buf = load_file("sm2_1");
 	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
 	sshbuf_free(buf);
 	sig_fuzz(k1, NULL);

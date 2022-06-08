@@ -354,6 +354,86 @@ sshkey_file_tests(void)
 	TEST_DONE();
 
 	sshkey_free(k1);
+	
+	
+	TEST_START("parse SM2 from private");
+	buf = load_file("sm2_1");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(k1, NULL);
+	buf = load_text_file("sm2_1.param.curve");
+	ASSERT_STRING_EQ((const char *)sshbuf_ptr(buf),
+	    OBJ_nid2sn(k1->ecdsa_nid));
+	sshbuf_free(buf);
+	a = load_bignum("sm2_1.param.priv");
+	b = load_bignum("sm2_1.param.pub");
+	c = EC_POINT_point2bn(EC_KEY_get0_group(k1->ecdsa),
+	    EC_KEY_get0_public_key(k1->ecdsa), POINT_CONVERSION_UNCOMPRESSED,
+	    NULL, NULL);
+	ASSERT_PTR_NE(c, NULL);
+	ASSERT_BIGNUM_EQ(EC_KEY_get0_private_key(k1->ecdsa), a);
+	ASSERT_BIGNUM_EQ(b, c);
+	BN_free(a);
+	BN_free(b);
+	BN_free(c);
+	TEST_DONE();
+
+	TEST_START("parse SM2 from private w/ passphrase");
+	buf = load_file("sm2_1_pw");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf,
+	    (const char *)sshbuf_ptr(pw), &k2, NULL), 0);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("parse SM2 from new-format");
+	buf = load_file("sm2_n");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k2, NULL), 0);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("parse SM2 from new-format w/ passphrase");
+	buf = load_file("sm2_n_pw");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf,
+	    (const char *)sshbuf_ptr(pw), &k2, NULL), 0);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("load SM2 from public");
+	ASSERT_INT_EQ(sshkey_load_public(test_data_file("sm2_1.pub"), &k2,
+	    NULL), 0);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("SM2 key hex fingerprint");
+	buf = load_text_file("sm2_1.fp");
+	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA256, SSH_FP_BASE64);
+	ASSERT_PTR_NE(cp, NULL);
+	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
+	sshbuf_free(buf);
+	free(cp);
+	TEST_DONE();
+
+	TEST_START("SM2 key bubblebabble fingerprint");
+	buf = load_text_file("sm2_1.fp.bb");
+	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA1, SSH_FP_BUBBLEBABBLE);
+	ASSERT_PTR_NE(cp, NULL);
+	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
+	sshbuf_free(buf);
+	free(cp);
+	TEST_DONE();
+
+	sshkey_free(k1);
 #endif /* OPENSSL_HAS_ECC */
 #endif /* WITH_OPENSSL */
 

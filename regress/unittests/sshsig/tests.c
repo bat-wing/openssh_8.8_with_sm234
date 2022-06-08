@@ -110,6 +110,10 @@ tests(void)
 	TEST_START("check ECDSA signature");
 	check_sig("ecdsa.pub", "ecdsa.sig", msg, namespace);
 	TEST_DONE();
+
+	TEST_START("check SM2 signature");
+	check_sig("sm2.pub", "sm2.sig", msg, namespace);
+	TEST_DONE();
 #endif
 #endif
 

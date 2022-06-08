@@ -126,6 +126,8 @@ static const struct keytype keytypes[] = {
 	    KEY_ECDSA, NID_X9_62_prime256v1, 0, 0 },
 	{ "ecdsa-sha2-nistp384", "ECDSA", NULL,
 	    KEY_ECDSA, NID_secp384r1, 0, 0 },
+	{ "sm2", "SM2", NULL, 
+		KEY_SM2, NID_sm2, 0, 0},
 #  ifdef OPENSSL_HAS_NISTP521
 	{ "ecdsa-sha2-nistp521", "ECDSA", NULL,
 	    KEY_ECDSA, NID_secp521r1, 0, 0 },
@@ -226,6 +228,7 @@ static int
 key_type_is_ecdsa_variant(int type)
 {
 	switch (type) {
+	case KEY_SM2:
 	case KEY_ECDSA:
 	case KEY_ECDSA_CERT:
 	case KEY_ECDSA_SK:
@@ -335,6 +338,7 @@ sshkey_size(const struct sshkey *k)
 			return 0;
 		DSA_get0_pqg(k->dsa, &dsa_p, NULL, NULL);
 		return BN_num_bits(dsa_p);
+	case KEY_SM2:
 	case KEY_ECDSA:
 	case KEY_ECDSA_CERT:
 	case KEY_ECDSA_SK:
@@ -420,7 +424,9 @@ sshkey_type_plain(int type)
 int
 sshkey_curve_name_to_nid(const char *name)
 {
-	if (strcmp(name, "nistp256") == 0)
+	if(strcmp(name, "sm2") == 0)
+		return NID_sm2;
+	else if (strcmp(name, "nistp256") == 0)
 		return NID_X9_62_prime256v1;
 	else if (strcmp(name, "nistp384") == 0)
 		return NID_secp384r1;
@@ -436,6 +442,7 @@ u_int
 sshkey_curve_nid_to_bits(int nid)
 {
 	switch (nid) {
+	case NID_sm2:
 	case NID_X9_62_prime256v1:
 		return 256;
 	case NID_secp384r1:
@@ -470,6 +477,8 @@ const char *
 sshkey_curve_nid_to_name(int nid)
 {
 	switch (nid) {
+	case NID_sm2:
+		return "sm2";
 	case NID_X9_62_prime256v1:
 		return "nistp256";
 	case NID_secp384r1:
@@ -486,6 +495,9 @@ sshkey_curve_nid_to_name(int nid)
 int
 sshkey_ec_nid_to_hash_alg(int nid)
 {
+	if(nid == NID_sm2)
+		return SSH_DIGEST_SM3;
+
 	int kbits = sshkey_curve_nid_to_bits(nid);
 
 	if (kbits <= 0)
@@ -579,6 +591,7 @@ sshkey_new(int type)
 		}
 		k->dsa = dsa;
 		break;
+	case KEY_SM2:
 	case KEY_ECDSA:
 	case KEY_ECDSA_CERT:
 	case KEY_ECDSA_SK:
@@ -744,6 +757,7 @@ sshkey_equal_public(const struct sshkey *a, const struct sshkey *b)
 		if (strcmp(a->sk_application, b->sk_application) != 0)
 			return 0;
 		/* FALLTHROUGH */
+	case KEY_SM2:
 	case KEY_ECDSA_CERT:
 	case KEY_ECDSA:
 		if (a->ecdsa == NULL || b->ecdsa == NULL ||
@@ -848,6 +862,7 @@ to_blob_buf(const struct sshkey *key, struct sshbuf *b, int force_plain,
 			return ret;
 		break;
 # ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA:
 	case KEY_ECDSA_SK:
 		if (key->ecdsa == NULL)
@@ -1319,6 +1334,7 @@ sshkey_read(struct sshkey *ret, char **cpp)
 		return SSH_ERR_INVALID_ARGUMENT;
 
 	switch (ret->type) {
+	case KEY_SM2:
 	case KEY_UNSPEC:
 	case KEY_RSA:
 	case KEY_DSA:
@@ -1422,6 +1438,7 @@ sshkey_read(struct sshkey *ret, char **cpp)
 #endif
 		break;
 # ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA:
 		EC_KEY_free(ret->ecdsa);
 		ret->ecdsa = k->ecdsa;
@@ -1681,14 +1698,19 @@ sshkey_ecdsa_key_to_nid(EC_KEY *k)
 }
 
 static int
-ecdsa_generate_private_key(u_int bits, int *nid, EC_KEY **ecdsap)
+ecdsa_generate_private_key(u_int bits, int *nid, EC_KEY **ecdsap, int type)
 {
 	EC_KEY *private;
 	int ret = SSH_ERR_INTERNAL_ERROR;
 
 	if (nid == NULL || ecdsap == NULL)
 		return SSH_ERR_INVALID_ARGUMENT;
-	if ((*nid = sshkey_ecdsa_bits_to_nid(bits)) == -1)
+	if (type == KEY_SM2)
+		if (bits == 256)
+			*nid = NID_sm2;
+		else
+			return SSH_ERR_KEY_LENGTH;
+	else if ((*nid = sshkey_ecdsa_bits_to_nid(bits)) == -1)
 		return SSH_ERR_KEY_LENGTH;
 	*ecdsap = NULL;
 	if ((private = EC_KEY_new_by_curve_name(*nid)) == NULL) {
@@ -1741,9 +1763,10 @@ sshkey_generate(int type, u_int bits, struct sshkey **keyp)
 		ret = dsa_generate_private_key(bits, &k->dsa);
 		break;
 # ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA:
 		ret = ecdsa_generate_private_key(bits, &k->ecdsa_nid,
-		    &k->ecdsa);
+		    &k->ecdsa, type);
 		break;
 # endif /* OPENSSL_HAS_ECC */
 	case KEY_RSA:
@@ -1875,6 +1898,7 @@ sshkey_from_private(const struct sshkey *k, struct sshkey **pkp)
 
 		break;
 # ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA:
 	case KEY_ECDSA_CERT:
 	case KEY_ECDSA_SK:
@@ -2441,6 +2465,7 @@ sshkey_from_blob_internal(struct sshbuf *b, struct sshkey **keyp,
 			goto out;
 		}
 		/* FALLTHROUGH */
+	case KEY_SM2:
 	case KEY_ECDSA:
 	case KEY_ECDSA_SK:
 		if ((key = sshkey_new(type)) == NULL) {
@@ -2747,6 +2772,7 @@ sshkey_sign(struct sshkey *key,
 		r = ssh_dss_sign(key, sigp, lenp, data, datalen, compat);
 		break;
 # ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA_CERT:
 	case KEY_ECDSA:
 		r = ssh_ecdsa_sign(key, sigp, lenp, data, datalen, compat);
@@ -2803,6 +2829,7 @@ sshkey_verify(const struct sshkey *key,
 	case KEY_DSA:
 		return ssh_dss_verify(key, sig, siglen, data, dlen, compat);
 # ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA_CERT:
 	case KEY_ECDSA:
 		return ssh_ecdsa_verify(key, sig, siglen, data, dlen, compat);
@@ -3265,6 +3292,7 @@ sshkey_private_serialize_opt(struct sshkey *key, struct sshbuf *buf,
 			goto out;
 		break;
 # ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA:
 		if ((r = sshbuf_put_cstring(b,
 		    sshkey_curve_nid_to_name(key->ecdsa_nid))) != 0 ||
@@ -3490,6 +3518,7 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 		dsa_priv_key = NULL; /* transferred */
 		break;
 # ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA:
 		if ((k->ecdsa_nid = sshkey_ecdsa_nid_from_name(tname)) == -1) {
 			r = SSH_ERR_INVALID_ARGUMENT;
@@ -4404,6 +4433,7 @@ sshkey_private_to_blob_pem_pkcs8(struct sshkey *key, struct sshbuf *buf,
 		}
 		break;
 #ifdef OPENSSL_HAS_ECC
+	case KEY_SM2:
 	case KEY_ECDSA:
 		if (format == SSHKEY_PRIVATE_PEM) {
 			success = PEM_write_bio_ECPrivateKey(bio, key->ecdsa,
@@ -4467,6 +4497,7 @@ sshkey_private_to_fileblob(struct sshkey *key, struct sshbuf *blob,
 	case KEY_DSA:
 	case KEY_ECDSA:
 	case KEY_RSA:
+	case KEY_SM2:
 		break; /* see below */
 #endif /* WITH_OPENSSL */
 	case KEY_ED25519:
@@ -4644,8 +4675,11 @@ sshkey_parse_private_pem_fileblob(struct sshbuf *blob, int type,
 			goto out;
 		}
 		prv->ecdsa = EVP_PKEY_get1_EC_KEY(pk);
-		prv->type = KEY_ECDSA;
 		prv->ecdsa_nid = sshkey_ecdsa_key_to_nid(prv->ecdsa);
+		if(prv->ecdsa_nid == NID_sm2)
+			prv->type =KEY_SM2;
+		else
+			prv->type = KEY_ECDSA;
 		if (prv->ecdsa_nid == -1 ||
 		    sshkey_curve_nid_to_name(prv->ecdsa_nid) == NULL ||
 		    sshkey_ec_validate_public(EC_KEY_get0_group(prv->ecdsa),

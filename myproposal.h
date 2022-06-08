@@ -30,6 +30,7 @@
 	"ecdh-sha2-nistp256," \
 	"ecdh-sha2-nistp384," \
 	"ecdh-sha2-nistp521," \
+	"ecdh-sha2-nidsm2,"\
 	"diffie-hellman-group-exchange-sha256," \
 	"diffie-hellman-group16-sha512," \
 	"diffie-hellman-group18-sha512," \
@@ -53,11 +54,12 @@
 	"sk-ssh-ed25519@openssh.com," \
 	"sk-ecdsa-sha2-nistp256@openssh.com," \
 	"rsa-sha2-512," \
-	"rsa-sha2-256"
+	"rsa-sha2-256," \
+	"sm2"
 
 #define	KEX_SERVER_ENCRYPT \
 	"chacha20-poly1305@openssh.com," \
-	"aes128-ctr,aes192-ctr,aes256-ctr," \
+	"aes128-ctr,aes192-ctr,aes256-ctr,sm4-ctr," \
 	"aes128-gcm@openssh.com,aes256-gcm@openssh.com"
 
 #define KEX_CLIENT_ENCRYPT KEX_SERVER_ENCRYPT
@@ -68,6 +70,7 @@
 	"hmac-sha2-256-etm@openssh.com," \
 	"hmac-sha2-512-etm@openssh.com," \
 	"hmac-sha1-etm@openssh.com," \
+	"hmac-sm3," \
 	"umac-64@openssh.com," \
 	"umac-128@openssh.com," \
 	"hmac-sha2-256," \

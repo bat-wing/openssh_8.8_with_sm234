@@ -63,9 +63,10 @@ int ssh_port = SSH_DEFAULT_PORT;
 #define KT_XMSS		(1<<4)
 #define KT_ECDSA_SK	(1<<5)
 #define KT_ED25519_SK	(1<<6)
+#define KT_SM2		(1<<7)
 
 #define KT_MIN		KT_DSA
-#define KT_MAX		KT_ED25519_SK
+#define KT_MAX		KT_SM2
 
 int get_cert = 0;
 int get_keytypes = KT_RSA|KT_ECDSA|KT_ED25519|KT_ECDSA_SK|KT_ED25519_SK;
@@ -260,6 +261,9 @@ keygrab_ssh2(con *c)
 		    "ecdsa-sha2-nistp256,"
 		    "ecdsa-sha2-nistp384,"
 		    "ecdsa-sha2-nistp521";
+		break;
+	case KT_SM2:
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = "sm2";
 		break;
 	case KT_ECDSA_SK:
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
@@ -726,6 +730,9 @@ main(int argc, char **argv)
 				switch (type) {
 				case KEY_DSA:
 					get_keytypes |= KT_DSA;
+					break;
+				case KEY_SM2:
+					get_keytypes |= KT_SM2;
 					break;
 				case KEY_ECDSA:
 					get_keytypes |= KT_ECDSA;

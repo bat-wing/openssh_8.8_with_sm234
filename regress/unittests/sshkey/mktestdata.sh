@@ -66,6 +66,28 @@ ecdsa_params() {
 	done
 }
 
+sm2_params() {
+	_in="$1"
+	_outbase="$2"
+	set -e
+	openssl ec -noout -text -in $_in | \
+	    awk '/^priv:$/,/^pub:/' | \
+	    grep -v '^[a-zA-Z]' | tr -d ' \n:' > ${_outbase}.priv
+	openssl ec -noout -text -in $_in | \
+	    awk '/^pub:/,/^ASN1 OID:/' | #\
+	    grep -v '^[a-zA-Z]' | tr -d ' \n:' > ${_outbase}.pub
+	openssl ec -noout -text -in $_in | \
+	    grep "ASN1 OID:" | \
+	    sed 's/.*: //;s/ *$//' | tr -d '\n' > ${_outbase}.curve
+	for x in priv pub curve ; do
+		echo "" >> ${_outbase}.$x
+		echo ============ ${_outbase}.$x
+		cat ${_outbase}.$x
+		echo ============
+	done
+}
+
+
 set -ex
 
 cd testdata
@@ -79,16 +101,17 @@ else
 	exit 1
 fi
 
-rm -f rsa_1 dsa_1 ecdsa_1 ed25519_1
-rm -f rsa_2 dsa_2 ecdsa_2 ed25519_2
-rm -f rsa_n dsa_n ecdsa_n # new-format keys
-rm -f rsa_1_pw dsa_1_pw ecdsa_1_pw ed25519_1_pw
-rm -f rsa_n_pw dsa_n_pw ecdsa_n_pw
+rm -f rsa_1 dsa_1 ecdsa_1 ed25519_1 sm2_1
+rm -f rsa_2 dsa_2 ecdsa_2 ed25519_2 sm2_2
+rm -f rsa_n dsa_n ecdsa_n sm2_n # new-format keys
+rm -f rsa_1_pw dsa_1_pw ecdsa_1_pw ed25519_1_pw sm2_1_pw
+rm -f rsa_n_pw dsa_n_pw ecdsa_n_pw sm2_n_pw
 rm -f pw *.pub *.bn.* *.param.* *.fp *.fp.bb
 
 ssh-keygen -t rsa -b 1024 -C "RSA test key #1" -N "" -f rsa_1 -m PEM
 ssh-keygen -t dsa -b 1024 -C "DSA test key #1" -N "" -f dsa_1 -m PEM
 ssh-keygen -t ecdsa -b 256 -C "ECDSA test key #1" -N "" -f ecdsa_1 -m PEM
+ssh-keygen -t sm2 -b 256 -C "SM2 test key #1" -N "" -f sm2_1 -m PEM # xhy
 ssh-keygen -t ed25519 -C "ED25519 test key #1" -N "" -f ed25519_1
 ssh-keygen -w "$SK_DUMMY" -t ecdsa-sk -C "ECDSA-SK test key #1" \
     -N "" -f ecdsa_sk1
@@ -99,6 +122,7 @@ ssh-keygen -w "$SK_DUMMY" -t ed25519-sk -C "ED25519-SK test key #1" \
 ssh-keygen -t rsa -b 2048 -C "RSA test key #2" -N "" -f rsa_2 -m PEM
 ssh-keygen -t dsa -b 1024 -C "DSA test key #2" -N "" -f dsa_2 -m PEM
 ssh-keygen -t ecdsa -b 521 -C "ECDSA test key #2" -N "" -f ecdsa_2 -m PEM
+ssh-keygen -t sm2 -b 256 -C "SM2 test key #2" -N "" -f sm2_2 -m PEM
 ssh-keygen -t ed25519 -C "ED25519 test key #2" -N "" -f ed25519_2
 ssh-keygen -w "$SK_DUMMY" -t ecdsa-sk -C "ECDSA-SK test key #2" \
     -N "" -f ecdsa_sk2
@@ -108,30 +132,36 @@ ssh-keygen -w "$SK_DUMMY" -t ed25519-sk -C "ED25519-SK test key #2" \
 cp rsa_1 rsa_n
 cp dsa_1 dsa_n
 cp ecdsa_1 ecdsa_n
+cp sm2_1 sm2_n
 
 ssh-keygen -pf rsa_n -N ""
 ssh-keygen -pf dsa_n -N ""
 ssh-keygen -pf ecdsa_n -N ""
+ssh-keygen -pf sm2_n -N ""
 
 cp rsa_1 rsa_1_pw
 cp dsa_1 dsa_1_pw
 cp ecdsa_1 ecdsa_1_pw
+cp sm2_1 sm2_1_pw
 cp ed25519_1 ed25519_1_pw
 cp ecdsa_sk1 ecdsa_sk1_pw
 cp ed25519_sk1 ed25519_sk1_pw
 cp rsa_1 rsa_n_pw
 cp dsa_1 dsa_n_pw
 cp ecdsa_1 ecdsa_n_pw
+cp sm2_1 sm2_n_pw
 
 ssh-keygen -pf rsa_1_pw -m PEM -N "$PW"
 ssh-keygen -pf dsa_1_pw -m PEM -N "$PW"
 ssh-keygen -pf ecdsa_1_pw -m PEM -N "$PW"
+ssh-keygen -pf sm2_1_pw -m PEM -N "$PW"
 ssh-keygen -pf ed25519_1_pw -N "$PW"
-ssh-keygen -pf ecdsa_sk1_pw -m PEM -N "$PW"
-ssh-keygen -pf ed25519_sk1_pw -N "$PW"
+# ssh-keygen -pf ecdsa_sk1_pw -m PEM -N "$PW"
+# ssh-keygen -pf ed25519_sk1_pw -N "$PW"
 ssh-keygen -pf rsa_n_pw -N "$PW"
 ssh-keygen -pf dsa_n_pw -N "$PW"
 ssh-keygen -pf ecdsa_n_pw -N "$PW"
+ssh-keygen -pf sm2_n_pw -N "$PW"
 
 rsa_params rsa_1 rsa_1.param
 rsa_params rsa_2 rsa_2.param
@@ -139,6 +169,8 @@ dsa_params dsa_1 dsa_1.param
 dsa_params dsa_1 dsa_1.param
 ecdsa_params ecdsa_1 ecdsa_1.param
 ecdsa_params ecdsa_2 ecdsa_2.param
+sm2_params sm2_1 sm2_1.param
+sm2_params sm2_1 sm2_1.param
 # XXX ed25519, *sk params
 
 ssh-keygen -s rsa_2 -I hugo -n user1,user2 \
@@ -189,12 +221,14 @@ ssh-keygen -s ed25519_1 -I julius -n host1,host2 -h \
 ssh-keygen -lf rsa_1 | awk '{print $2}' > rsa_1.fp
 ssh-keygen -lf dsa_1 | awk '{print $2}' > dsa_1.fp
 ssh-keygen -lf ecdsa_1 | awk '{print $2}' > ecdsa_1.fp
+ssh-keygen -lf sm2_1 | awk '{print $2}' > sm2_1.fp
 ssh-keygen -lf ed25519_1 | awk '{print $2}' > ed25519_1.fp
 ssh-keygen -lf ecdsa_sk1 | awk '{print $2}' > ecdsa_sk1.fp
 ssh-keygen -lf ed25519_sk1 | awk '{print $2}' > ed25519_sk1.fp
 ssh-keygen -lf rsa_2 | awk '{print $2}' > rsa_2.fp
 ssh-keygen -lf dsa_2 | awk '{print $2}' > dsa_2.fp
 ssh-keygen -lf ecdsa_2 | awk '{print $2}' > ecdsa_2.fp
+ssh-keygen -lf sm2_2 | awk '{print $2}' > sm2_2.fp
 ssh-keygen -lf ed25519_2 | awk '{print $2}' > ed25519_2.fp
 ssh-keygen -lf ecdsa_sk2 | awk '{print $2}' > ecdsa_sk2.fp
 ssh-keygen -lf ed25519_sk2 | awk '{print $2}' > ed25519_sk2.fp
@@ -209,12 +243,14 @@ ssh-keygen -lf ed25519_sk1-cert.pub  | awk '{print $2}' > ed25519_sk1-cert.fp
 ssh-keygen -Bf rsa_1 | awk '{print $2}' > rsa_1.fp.bb
 ssh-keygen -Bf dsa_1 | awk '{print $2}' > dsa_1.fp.bb
 ssh-keygen -Bf ecdsa_1 | awk '{print $2}' > ecdsa_1.fp.bb
+ssh-keygen -Bf sm2_1 | awk '{print $2}' > sm2_1.fp.bb
 ssh-keygen -Bf ed25519_1 | awk '{print $2}' > ed25519_1.fp.bb
 ssh-keygen -Bf ecdsa_sk1 | awk '{print $2}' > ecdsa_sk1.fp.bb
 ssh-keygen -Bf ed25519_sk1 | awk '{print $2}' > ed25519_sk1.fp.bb
 ssh-keygen -Bf rsa_2 | awk '{print $2}' > rsa_2.fp.bb
 ssh-keygen -Bf dsa_2 | awk '{print $2}' > dsa_2.fp.bb
 ssh-keygen -Bf ecdsa_2 | awk '{print $2}' > ecdsa_2.fp.bb
+ssh-keygen -Bf sm2_2 | awk '{print $2}' > sm2_2.fp.bb
 ssh-keygen -Bf ed25519_2 | awk '{print $2}' > ed25519_2.fp.bb
 ssh-keygen -Bf ecdsa_sk2 | awk '{print $2}' > ecdsa_sk2.fp.bb
 ssh-keygen -Bf ed25519_sk2 | awk '{print $2}' > ed25519_sk2.fp.bb

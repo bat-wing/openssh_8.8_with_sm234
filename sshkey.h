@@ -60,6 +60,7 @@ enum sshkey_types {
 	KEY_RSA,
 	KEY_DSA,
 	KEY_ECDSA,
+	KEY_SM2,
 	KEY_ED25519,
 	KEY_RSA_CERT,
 	KEY_DSA_CERT,
@@ -129,7 +130,7 @@ struct sshkey {
 	RSA	*rsa;
 	/* KEY_DSA */
 	DSA	*dsa;
-	/* KEY_ECDSA and KEY_ECDSA_SK */
+	/* KEY_ECDSA, KEY_SM2 and KEY_ECDSA_SK */
 	int	 ecdsa_nid;	/* NID of curve */
 	EC_KEY	*ecdsa;
 	/* KEY_ED25519 and KEY_ED25519_SK */
